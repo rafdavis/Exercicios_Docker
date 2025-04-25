@@ -1,0 +1,24 @@
+version: "3.8"
+services:
+  db:
+    image: bitnami/postgresql:17
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: teste
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DATABASE: postgres
+    volumes:
+      - dadospg:/bitnami/postgresql
+  pg:
+    image: dpage/pgadmin4:9.1
+    environment:
+      PGADMIN_DEFAULT_EMAIL: teste@email.com
+      PGADMIN_DEFAULT_PASSWORD: 1234
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+
+volumes:
+  dadospg:
