@@ -1,4 +1,4 @@
-# Lista de Exercícios Docker
+# Resolução da Lista de Exercícios Docker
 
 ## 1. Executar um container básico
 
@@ -341,3 +341,252 @@ docker network inspect nome_rede
 ```
 
 ![](EX7/imgs/networkContainers.png)
+
+## 8. Criando um compose file para rodar uma aplicação com banco de dados
+
+### Objetivos: 
+- Configurar uma aplicação com um banco de dados PostgreSQL utilizando Docker Compose
+
+#### Docker Compose
+```
+version: "3.8"
+services:
+  db:
+    image: bitnami/postgresql:17
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: teste
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DATABASE: postgres
+    volumes:
+      - dadospg:/bitnami/postgresql
+  pg:
+    image: dpage/pgadmin4:9.1
+    environment:
+      PGADMIN_DEFAULT_EMAIL: teste@email.com
+      PGADMIN_DEFAULT_PASSWORD: 1234
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+
+volumes:
+  dadospg:
+```
+
+#### Após copiar o Docker Compose basta rodar 
+```
+docker compose up -d
+```
+
+![](EX8/imgs/composeUp.png)
+
+#### Confira se os containers foram criados
+```
+docker ps
+```
+
+![](EX8/imgs/containersDB.png)
+
+## 9. Criando uma imagem personalizada com um servidor web e arquivos estáticos
+
+### Objetivos:
+- Construir uma imagem baseada no Nginx ou Apache
+- Adicionar um site HTML/CSS estático
+
+#### Dockerfile
+```
+FROM nginx:stable-alpine3.21-slim
+WORKDIR /usr/share/nginx/html
+COPY . .
+EXPOSE 80
+```
+
+#### Construa a imagem com base no Dockerfile
+```
+docker build -t nome_imagem .
+```
+
+![](EX9/imgs/buildNginx.png)
+
+#### Com a imagem feita é possível criar o container
+```
+docker run -dp 8080:80 nome_imagem
+```
+
+![](EX9/imgs/containerNginx.png)
+
+#### Confira se o container foi iniciado
+```
+docker ps
+```
+
+![](EX9/imgs/execContainerNginx.png)
+
+#### Com o container rodando confira a aplicação no navegador em:
+```
+localhost:8080
+```
+
+![](EX9/imgs/runningNginx.png)
+
+## 10. Evitar execução como root
+
+### Objetivos:
+- Criar um Dockerfile para uma aplicação simples
+- Configurar imagem para rodar com um usuário não-root
+
+#### Dockerfile
+```
+FROM node:lts-alpine3.21
+RUN addgroup dev && adduser -S -G dev docker
+USER docker
+WORKDIR /app
+COPY package.json .
+RUN npm install
+COPY . .
+EXPOSE 4000
+CMD [ "npm", "start" ]
+```
+
+#### Com o Dockerfile em mãos construa a imagem
+```
+docker build -t nome_imagem .
+```
+
+![](EX10/imgs/buildNode.png)
+
+#### Crie o container com base na imagem
+```
+docker run -dp 4000:4000 nome_imagem
+```
+
+![](EX10/imgs/containerNode.png)
+
+#### Confira se o container foi criado
+```
+docker ps
+```
+
+![](EX10/imgs/execContainerNode.png)
+
+#### Entre no container
+```
+docker exec -it nome_container bash
+```
+![](EX10/imgs/inContainerNode.png)
+
+#### Dentro do Container verifique o usuário
+```
+whoami
+```
+
+![](EX10/imgs/user.png)
+
+## 11. Analisar imagem Docker com Trivy
+
+### Objetivos:
+- Analisar uma imagem pública
+- Buscar vulnerabilidades conhecidas
+
+#### Dockerfile
+```
+FROM node:16
+EXPOSE 3000
+```
+
+#### Para fazer essa busca de vulnerabilidades é preciso instalar o Trivy
+```
+sudo apt-get install wget apt-transport-https gnupg lsb-release
+wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+sudo apt-get update
+sudo apt-get install trivy
+```
+
+#### Com base no Dockerfile construa a imagem
+```
+docker build -t nome_imagem .
+```
+
+![](EX11/imgs/buildNode.png)
+
+#### Com a imagem criada verifique as vulnerabilidades
+```
+trivy image nome_imagem
+```
+
+![](EX11/imgs/trivyNode.png)
+
+
+## 12. Corrigir vulnerabilidades encontradas
+
+### Objetivos: 
+- Utilizar Dockerfile com más práticas
+- Aplicar melhorias e corrigir as vulnerabilidades encontradas no Dockerfile
+
+#### Dockerfile
+```
+FROM python:3.9
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD [ "python", "app.py" ]
+```
+
+#### app.py
+```
+from flask import Flask
+app = Flask(__name__)
+
+@app.route('/')
+def hello():
+	return "Hello World!"
+
+if __name__ == '__main__':
+	app.run(host='0.0.0.0', port=8000)
+```
+
+#### requirements.txt
+```
+flask==1.1.1
+requests==2.22.0
+```
+
+#### Construa a imagem vulnerável
+```
+docker build -t nome_imagem .
+```
+
+![](EX12/imgs/buildFlask.png)
+
+#### Com a imagem feita é possível identificar as vulnerabilidades
+```
+trivy image nome_imagem
+```
+
+![](EX12/imgs/trivyFlask.png)
+
+### Agora é hora de corrigir as vulnerabilidades
+
+#### Atualize o requirements.txt
+```
+flask==2.3.2
+requests==2.32.0
+```
+
+#### Construa outra imagem
+```
+docker build -t nome_imagem .
+```
+
+![](EX12/imgs/buildUpdateFlask.png)
+
+#### Confira as vulnerabilidades
+```
+trivy image nome_imagem
+```
+
+![](EX12/imgs/trivyUpdateFlask.png)
